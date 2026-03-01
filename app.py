@@ -1,32 +1,23 @@
-from dotenv import load_dotenv
-load_dotenv()
 import os
 import requests
 import streamlit as st
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
 # ==========================
-# APIキー設定
+# Streamlit設定
 # ==========================
-os.environ["OPENAI_API_KEY"] = "YOUR_API_KEY"
-
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
-
 st.set_page_config(page_title="PubChem Explorer", layout="wide")
 
-# ==========================
-# アプリ説明
-# ==========================
 st.title("🧪 PubChem Chemical Structure Explorer")
 
 st.markdown("""
 ### 📘 アプリ概要
-このWebアプリは以下を実行します：
+このWebアプリは：
 
 1. 入力された化学物質名をPubChemで検索
 2. 化学構造式を表示（PubChem公式画像）
-3. LangChainを使いLLMが専門家として解説
+3. LangChainを使ってLLMが専門家として解説
 
 ### 🧭 操作方法
 1. 化学物質名を入力
@@ -35,7 +26,22 @@ st.markdown("""
 """)
 
 # ==========================
-# PubChem画像URL取得
+# APIキー取得（Cloud対応）
+# ==========================
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    st.error("OPENAI_API_KEYが設定されていません。Streamlit CloudのSecretsに設定してください。")
+    st.stop()
+
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    temperature=0.3,
+    api_key=api_key
+)
+
+# ==========================
+# PubChem画像URL
 # ==========================
 def get_structure_image_url(chemical_name):
     return f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{chemical_name}/PNG"
@@ -56,12 +62,12 @@ def get_smiles(chemical_name):
         return None
 
 # ==========================
-# LLM応答生成関数
+# LLM応答生成関数（指定要件）
 # ==========================
 def generate_expert_response(input_text, expert_type):
     """
-    input_text: 入力された化学物質名
-    expert_type: ラジオボタン選択値
+    input_text: 入力テキスト（化学物質名）
+    expert_type: ラジオボタンの選択値
     戻り値: LLMの回答
     """
 
@@ -71,15 +77,15 @@ def generate_expert_response(input_text, expert_type):
         Explain the compound focusing on:
         - Drug discovery relevance
         - Mechanism of action
-        - Medicinal chemistry perspective
+        - Medicinal chemistry insights
         """
     else:
         system_message = """
         You are a toxicology expert.
         Explain the compound focusing on:
         - Toxicity profile
-        - Safety risks
-        - Environmental and biological impact
+        - Safety considerations
+        - Biological and environmental impact
         """
 
     prompt = ChatPromptTemplate.from_messages([
